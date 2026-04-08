@@ -44,6 +44,8 @@ jobs:
     - name: Manage notifications
       if: ${{fromJSON(steps.decision.outputs.enough) == true}}
       uses: actions/github-script@v8
+      env:
+        DISMISS_CLOSED_PR_NOTIFICATION_REPOS: ${{vars.DISMISS_CLOSED_PR_NOTIFICATION_REPOS}}
       with:
         github-token: ${{ secrets.NOTIFICATIONS_TOKEN }}
         script: |
@@ -64,6 +66,11 @@ jobs:
           }
 
           const authenticatedUser = await github.rest.users.getAuthenticated().then(it => it.data)
+
+          const dismissClosedPrRepos = (process.env.DISMISS_CLOSED_PR_NOTIFICATION_REPOS || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
 
           const nowMillis = new Date().getTime()
           const sinceMillis = nowMillis - (3 * 24 * 3600 * 1000)
@@ -144,31 +151,29 @@ jobs:
               }
             }
 
-            if (pullRequest.user.login.endsWith('[bot]')
-              || pullRequest.labels.some(label => label.name === 'sync-with-template')
-            ) {
-              let canNotificationBeDeleted = false
-              if (!canNotificationBeDeleted) {
-                if (pullRequest.merged_at != null) {
-                  canNotificationBeDeleted = true
-                  console.log("Pull Request is merged")
-                } else if (pullRequest.closed_at != null) {
-                  canNotificationBeDeleted = true
-                  console.log("Pull Request is closed")
-                }
-              }
+            let processingReason = null
+            if (pullRequest.user.login.endsWith('[bot]')) {
+              processingReason = 'bot PR'
+            } else if (pullRequest.labels.some(label => label.name === 'sync-with-template')) {
+              processingReason = 'sync-with-template label'
+            } else if (dismissClosedPrRepos.some(entry => entry === notification.repository.full_name || entry === notification.repository.owner.login)) {
+              processingReason = 'repo matches DISMISS_CLOSED_PR_NOTIFICATION_REPOS'
+            }
 
-              if (canNotificationBeDeleted) {
-                console.log("Marking thread as done")
-                await github.rest.activity.markThreadAsDone({
-                  thread_id: notification.id,
-                })
-
-              } else {
-                console.log("PR may require attention")
-              }
+            if (processingReason == null) {
+              console.log("Notification is not eligible for auto-dismissal")
+            } else if (pullRequest.merged_at != null) {
+              console.log("Marking thread as done, reason: " + processingReason + ", merged")
+              await github.rest.activity.markThreadAsDone({
+                thread_id: notification.id,
+              })
+            } else if (pullRequest.closed_at != null) {
+              console.log("Marking thread as done, reason: " + processingReason + ", closed")
+              await github.rest.activity.markThreadAsDone({
+                thread_id: notification.id,
+              })
             } else {
-                console.log("Not an automatic PR")
+              console.log("PR may require attention (" + processingReason + ")")
             }
             console.log("::endgroup::")
           }
