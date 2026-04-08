@@ -46,6 +46,7 @@ jobs:
       uses: actions/github-script@v8
       env:
         DISMISS_CLOSED_PR_NOTIFICATION_REPOS: ${{vars.DISMISS_CLOSED_PR_NOTIFICATION_REPOS}}
+        DISMISS_FAILED_PIPELINE_REPOS: ${{vars.DISMISS_FAILED_PIPELINE_REPOS}}
       with:
         github-token: ${{ secrets.NOTIFICATIONS_TOKEN }}
         script: |
@@ -66,6 +67,11 @@ jobs:
           }
 
           const authenticatedUser = await github.rest.users.getAuthenticated().then(it => it.data)
+
+          const dismissFailedPipelineRepos = (process.env.DISMISS_FAILED_PIPELINE_REPOS || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
 
           const dismissClosedPrRepos = (process.env.DISMISS_CLOSED_PR_NOTIFICATION_REPOS || '')
             .split('\n')
@@ -96,6 +102,8 @@ jobs:
             let notificationDeletionReason = null
             if (title.match(/ workflow run(, Attempt #\d+)? cancelled for .* branch$/)) {
               notificationDeletionReason = 'cancelled'
+            } else if (notification.repository != null && dismissFailedPipelineRepos.some(entry => entry === notification.repository.full_name || entry === notification.repository.owner.login)) {
+              notificationDeletionReason = 'repo matches DISMISS_FAILED_PIPELINE_REPOS'
             }
 
             if (notificationDeletionReason != null) {
@@ -111,15 +119,6 @@ jobs:
           for (const notification of notifications) {
             if (notification.subject?.type !== 'PullRequest') continue
             if (notification.repository == null) continue
-
-            if (notification.reason !== 'assign'
-              && notification.reason !== 'subscribed'
-              && notification.reason !== 'review_requested'
-              && notification.reason !== 'author'
-            ) {
-              //console.log(JSON.stringify(notification, null, 2))
-              continue;
-            }
 
             const repositoryUrl = notification.repository.url
             let pullRequestId = notification.subject.url
