@@ -78,7 +78,7 @@ jobs:
                 html_url: notification.repository.html_url,
               }
             }
-            console.log(JSON.stringify(notificationToLog, null, 2))
+            //console.log(JSON.stringify(notificationToLog, null, 2))
           }
 
           for (const notification of notifications) {
@@ -127,7 +127,7 @@ jobs:
               repo: notification.repository.name,
               pull_number: pullRequestId,
             }).then(it => it.data)
-            console.log("::group::Pull Request '" + notification.subject.title + "' (" + notification.id + ")")
+            console.log("::group::Pull Request " + notification.repository.full_name + "#" + pullRequestId + " '" + notification.subject.title + "' (" + notification.id + ")")
 
             if (notification.reason === 'review_requested') {
               const isReviewer = pullRequest.requested_reviewers.some(
