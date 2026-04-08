@@ -62,6 +62,8 @@ jobs:
             })
           }
 
+          const authenticatedUser = await github.rest.users.getAuthenticated().then(it => it.data)
+
           const nowMillis = new Date().getTime()
           const sinceMillis = nowMillis - (3 * 24 * 3600 * 1000)
           const notifications = await github.paginate(github.rest.activity.listNotificationsForAuthenticatedUser, {
@@ -76,7 +78,7 @@ jobs:
                 html_url: notification.repository.html_url,
               }
             }
-            //console.log(JSON.stringify(notificationToLog, null, 2))
+            console.log(JSON.stringify(notificationToLog, null, 2))
           }
 
           for (const notification of notifications) {
@@ -126,6 +128,20 @@ jobs:
               pull_number: pullRequestId,
             }).then(it => it.data)
             console.log("::group::Pull Request '" + notification.subject.title + "' (" + notification.id + ")")
+
+            if (notification.reason === 'review_requested') {
+              const isReviewer = pullRequest.requested_reviewers.some(
+                reviewer => reviewer.login === authenticatedUser.login
+              )
+              if (!isReviewer) {
+                console.log("Not in reviewers list, marking thread as done")
+                await github.rest.activity.markThreadAsDone({
+                  thread_id: notification.id,
+                })
+                console.log("::endgroup::")
+                continue
+              }
+            }
 
             if (pullRequest.user.login.endsWith('[bot]')
               || pullRequest.labels.some(label => label.name === 'sync-with-template')
