@@ -45,8 +45,8 @@ jobs:
       if: ${{fromJSON(steps.decision.outputs.enough) == true}}
       uses: actions/github-script@v8
       env:
-        DISMISS_CLOSED_PR_NOTIFICATION_REPOS: ${{vars.DISMISS_CLOSED_PR_NOTIFICATION_REPOS}}
-        DISMISS_FAILED_PIPELINE_REPOS: ${{vars.DISMISS_FAILED_PIPELINE_REPOS}}
+        DISMISS_CLOSED_PR_NOTIFICATION_REPOS: ${{vars.DISMISS_CLOSED_PR_NOTIFICATION_REPOS || ''}}
+        DISMISS_FAILED_PIPELINE_REPOS: ${{vars.DISMISS_FAILED_PIPELINE_REPOS || ''}}
       with:
         github-token: ${{ secrets.NOTIFICATIONS_TOKEN }}
         script: |
@@ -68,12 +68,12 @@ jobs:
 
           const authenticatedUser = await github.rest.users.getAuthenticated().then(it => it.data)
 
-          const dismissFailedPipelineRepos = (process.env.DISMISS_FAILED_PIPELINE_REPOS || '')
+          const dismissFailedPipelineRepos = (process.env.DISMISS_FAILED_PIPELINE_REPOS ?? '')
             .split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0)
 
-          const dismissClosedPrRepos = (process.env.DISMISS_CLOSED_PR_NOTIFICATION_REPOS || '')
+          const dismissClosedPrRepos = (process.env.DISMISS_CLOSED_PR_NOTIFICATION_REPOS ?? '')
             .split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0)
