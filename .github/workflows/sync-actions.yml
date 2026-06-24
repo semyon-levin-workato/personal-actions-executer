@@ -1,0 +1,46 @@
+name: Sync actions
+
+on:
+  schedule:
+  - cron: '23 * * * *'
+  push:
+    branches:
+    - main
+    paths:
+    - '.github/workflows/sync-actions.yml'
+  workflow_dispatch: { }
+
+concurrency:
+  group: sync-actions
+  cancel-in-progress: true
+
+env:
+  SOURCE_REPO: remal/personal-actions-executer
+  SOURCE_BRANCH: main
+  FILES: |
+    .github/workflows/manage-notifications.yml
+
+jobs:
+  sync-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{secrets.PUSH_BACK_TOKEN}}
+
+    - name: Sync actions
+      run: |
+        for file in $FILES; do
+          echo "Syncing $file"
+          curl --fail --silent --show-error --location \
+            "https://raw.githubusercontent.com/$SOURCE_REPO/$SOURCE_BRANCH/$file" \
+            --output "$file"
+        done
+
+    - name: Push back
+      if: ${{github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')}}
+      uses: remal-github-actions/push-back@v2
+      with:
+        message: '[push-back] Push-back updated files during build'
