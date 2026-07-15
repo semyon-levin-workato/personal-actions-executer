@@ -32,11 +32,11 @@ jobs:
 
     - name: Sync actions
       run: |
-        for file in $FILES; do
-          echo "Syncing $file"
+        for file in ${FILES}; do
+          echo "Syncing ${file}"
           curl --fail --silent --show-error --location \
-            "https://raw.githubusercontent.com/$SOURCE_REPO/$SOURCE_BRANCH/$file" \
-            --output "$file"
+            "https://raw.githubusercontent.com/${SOURCE_REPO}/${SOURCE_BRANCH}/${file}" \
+            --output "${file}"
         done
 
     - name: Push back
