@@ -40,7 +40,7 @@ jobs:
         done
 
     - name: Push back
-      if: ${{github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')}}
+      if: ${{startsWith(github.ref, 'refs/heads/')}}
       uses: remal-github-actions/push-back@v2
       with:
         message: '[push-back] Push-back updated files during build'
